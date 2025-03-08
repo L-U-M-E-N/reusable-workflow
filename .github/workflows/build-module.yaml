@@ -4,12 +4,6 @@ on:
       SONAR_KEY:
         required: true
         type: string
-      SONAR_HOST_URL:
-        required: true
-        type: string
-      SONAR_TOKEN:
-        required: true
-        type: string
       MODULE_NAME:
         required: true
         type: string
@@ -22,6 +16,12 @@ on:
       RUN_TESTS:
         required: true
         type: string
+
+    secrets:
+      SONAR_HOST_URL:
+        required: true
+      SONAR_TOKEN:
+        required: true
 
 jobs:
   reusable_workflow_job:
@@ -43,24 +43,24 @@ jobs:
         dotnet tool install --global dotnet-sonarscanner
 
     - name: Start sonarscanner
-      run: dotnet sonarscanner begin /k:"${{ env.SONAR_KEY }}" /d:sonar.host.url="${{ env.SONAR_HOST_URL }}" /d:sonar.token="${{ env.SONAR_TOKEN }}" /d:sonar.cs.vscoveragexml.reportsPaths=coverage.xml /d:sonar.coverage.exclusions="**Test*.cs" /d:sonar.branch.name="${{github.ref_name}}"
+      run: dotnet sonarscanner begin /k:"${{ inputs.SONAR_KEY }}" /d:sonar.host.url="${{ secrets.SONAR_HOST_URL }}" /d:sonar.token="${{ secrets.SONAR_TOKEN }}" /d:sonar.cs.vscoveragexml.reportsPaths=coverage.xml /d:sonar.coverage.exclusions="**Test*.cs" /d:sonar.branch.name="${{github.ref_name}}"
 
     - name: Set Version in csproj
       if: startsWith(github.event.ref, 'refs/tags/')
-      run: sed -i 's/>1.0.0</>${{github.ref_name}}</g' ${{ env.CSPROJ }}
+      run: sed -i 's/>1.0.0</>${{github.ref_name}}</g' ${{ inputs.CSPROJ }}
 
     - name: Restore dependencies
       run: dotnet restore
     - name: Build
       run: dotnet build --no-restore
     - name: Test
-      if: env.RUN_TESTS == 'true'
+      if: inputs.RUN_TESTS == 'true'
       run: |
         dotnet tool install --global dotnet-coverage
         dotnet-coverage collect 'dotnet test --no-build --verbosity normal' -f xml  -o 'coverage.xml'
 
     - name: End sonarscanner
-      run: dotnet sonarscanner end /d:sonar.token="${{ env.SONAR_TOKEN }}"
+      run: dotnet sonarscanner end /d:sonar.token="${{ secrets.SONAR_TOKEN }}"
 
     - name: Zip release files
       if: startsWith(github.event.ref, 'refs/tags/')
@@ -69,11 +69,11 @@ jobs:
         sudo apt install zip
         dotnet build -c Release
         mkdir out/
-        cp ${{ env.RELEASE_FILES_LOCATION }} out/
-        zip -r ${{ env.MODULE_NAME }}-${{github.ref_name}}.zip out/*
+        cp ${{ inputs.RELEASE_FILES_LOCATION }} out/
+        zip -r ${{ inputs.MODULE_NAME }}-${{github.ref_name}}.zip out/*
 
     - name: Release
       uses: softprops/action-gh-release@v2
       if: startsWith(github.event.ref, 'refs/tags/')
       with:
-        files: ${{ env.MODULE_NAME }}-${{github.ref_name}}.zip
+        files: ${{ inputs.MODULE_NAME }}-${{github.ref_name}}.zip
