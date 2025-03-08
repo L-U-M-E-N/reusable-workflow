@@ -70,7 +70,7 @@ jobs:
         dotnet build -c Release
         mkdir out/
         cp ${{ inputs.RELEASE_FILES_LOCATION }} out/
-        zip -r ${{ inputs.MODULE_NAME }}-${{github.ref_name}}.zip out/*
+        cd out/ && zip -r ../${{ inputs.MODULE_NAME }}-${{github.ref_name}}.zip *
 
     - name: Release
       uses: softprops/action-gh-release@v2
